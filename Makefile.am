@@ -132,7 +132,7 @@ ca_cas_fsck_SOURCES = \
   src/ca-cas-fsck.cc
 ca_cas_fsck_LDADD = \
   src/libutil.la \
-  $(CAPNP_LIBS) \
+  -lcapnp-rpc $(CAPNP_RPC_LIBS) $(CAPNP_LIBS) $(KJ_LIBS) \
   $(CRYPTO_LIBS)
 
 ca_cas_SOURCES = \
@@ -162,7 +162,7 @@ ca_casd_LDADD = \
   src/libstorage.la \
   src/libutil.la \
   src/libproto.la \
-  $(CAPNP_RPC_LIBS) \
+  $(CAPNP_RPC_LIBS) $(KJ_LIBS) \
   $(YAML_LIBS)
 
 src_balancer_test_SOURCES = \
@@ -173,7 +173,7 @@ src_balancer_test_LDADD = \
   src/libutil.la \
   src/libproto.la \
   third_party/gtest/libgtest.a \
-  $(CAPNP_RPC_LIBS) \
+  $(CAPNP_RPC_LIBS) $(KJ_LIBS) \
   $(YAML_LIBS)
 
 src_storage_server_test_SOURCES = \
@@ -184,7 +184,7 @@ src_storage_server_test_LDADD = \
   src/libutil.la \
   src/libproto.la \
   third_party/gtest/libgtest.a \
-  $(CAPNP_RPC_LIBS) \
+  $(CAPNP_RPC_LIBS) $(KJ_LIBS) \
   $(YAML_LIBS)
 
 CLEANFILES = $(BUILT_SOURCES)

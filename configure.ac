@@ -7,6 +7,7 @@ AM_MAINTAINER_MODE([disable])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
+PKG_CHECK_MODULES([KJ], [kj >= 0.6])
 PKG_CHECK_MODULES([CAPNP], [capnp >= 0.6])
 PKG_CHECK_MODULES([CAPNP_RPC], [capnp-rpc >= 0.6])
 PKG_CHECK_MODULES([CRYPTO], [libcrypto])
