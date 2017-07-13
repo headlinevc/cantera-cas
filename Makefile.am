@@ -130,8 +130,11 @@ nodist_src_libproto_la_SOURCES = \
 
 ca_cas_fsck_SOURCES = \
   src/ca-cas-fsck.cc
+
 ca_cas_fsck_LDADD = \
+  libca-cas.la \
   src/libutil.la \
+  src/libproto.la \
   -lcapnp-rpc $(CAPNP_RPC_LIBS) $(CAPNP_LIBS) $(KJ_LIBS) \
   $(CRYPTO_LIBS)
 

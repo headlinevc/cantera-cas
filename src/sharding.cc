@@ -122,7 +122,7 @@ CASClient* ShardingInfo::NextShardForKey(
     if (++i == hash_ring_.end()) i = hash_ring_.begin();
   } while (i != first);
 
-  KJ_FAIL_REQUIRE("Missing backend for key");
+  KJ_FAIL_REQUIRE("Missing backend for key " + key.ToString());
 }
 
 void ShardingInfo::InitializeBackend(Backend backend) {

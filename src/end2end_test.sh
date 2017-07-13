@@ -3,7 +3,7 @@
 set -e
 set -o pipefail
 
-#LAUNCHER="valgrind -q"
+LAUNCHER="valgrind -q"
 
 repo=`mktemp -d`
 
@@ -11,6 +11,8 @@ trap 'rm -rf "$repo"' EXIT INT
 
 $LAUNCHER ./ca-casd --address=127.0.0.1 --port=5923 -n "$repo" &
 SERVER_PID=$!
+
+sleep 15
 
 export CA_CAS_SERVER=127.0.0.1:5923
 

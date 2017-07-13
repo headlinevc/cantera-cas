@@ -31,6 +31,7 @@
 #include <future>
 #include <mutex>
 #include <random>
+#include <iostream>
 
 #include <err.h>
 #include <fcntl.h>
@@ -46,6 +47,8 @@
 #include "src/sha1.h"
 #include "src/storage-server.h"
 #include "src/util.h"
+#include "src/progress.h"
+#include "src/bytestream.h"
 
 using namespace cantera;
 using namespace cantera::cas_internal;
@@ -88,6 +91,7 @@ size_t num_sha1_verify = 10000;
 
 int print_version;
 int print_help;
+int complete;
 
 // Some of our code uses a lot of memory temporarily.  This mutex prevents
 // multiple instances of that code from running in parallel.
@@ -95,6 +99,7 @@ std::mutex big_memory;
 
 struct option long_options[] = {{"version", no_argument, &print_version, 1},
                                 {"help", no_argument, &print_help, 1},
+                                {"complete", no_argument, &complete, 1},
                                 {0, 0, 0, 0}};
 
 std::exception_ptr CheckRepository(std::string path) {
@@ -168,6 +173,7 @@ std::exception_ptr CheckRepository(std::string path) {
     for (auto i = index.begin(); i != index.end(); ++i) {
       if (i->offset & kDeletedMask) continue;
 
+
       const auto offset = i->offset & kOffsetMask;
       const auto data_file_idx = (i->offset & kBucketMask) >> 56;
 
@@ -181,6 +187,7 @@ std::exception_ptr CheckRepository(std::string path) {
       std::array<uint8_t, 20> digest;
       cas_internal::SHA1::Digest(buffer, digest.begin());
 
+      KJ_CONTEXT(CASKey(digest.data()).ToString() + " " + CASKey(i->key.data()).ToString());
       KJ_REQUIRE(std::equal(digest.begin(), digest.end(), i->key.begin(),
                             i->key.end()));
     }
@@ -191,9 +198,60 @@ std::exception_ptr CheckRepository(std::string path) {
   return nullptr;
 }
 
+
+std::exception_ptr CheckRepositoryComplete(std::string host)
+try
+{
+  kj::AsyncIoContext async_io{kj::setupAsyncIo()};
+  CASClient client(host, async_io);
+  client.OnConnect().wait(async_io.waitScope);
+
+  std::vector<CASKey> all_keys;
+
+  client.ListAsync(
+    [&all_keys](const CASKey& key)
+    {
+      all_keys.push_back(key);
+    },
+    CAS::ListMode::DEFAULT
+  )
+    .wait(async_io.waitScope);
+
+  Progress progress(all_keys.size(), "objects");
+
+  for (const auto &key : all_keys)
+  {
+    progress.Put(1);
+    auto read_data = client.Get(
+      string_view(key.ToString())
+    );
+
+    cas_internal::SHA1 sha1;
+    sha1.Add(read_data.begin(), read_data.size());
+    CASKey digest;
+    sha1.Finish(digest.begin());
+    if (key != digest)
+    {
+      std::string result("G");
+      cas_internal::ToBase64(
+        string_view{reinterpret_cast<const char*>(digest.data()), digest.size()}, result,
+        cas_internal::kBase64WebSafeChars, false);
+      std::cerr << "\nkey doesn't match, deleting " << result << "\n";
+      client.Remove(key);
+    }
+  }
+  return nullptr;
+}
+catch (...)
+{
+  return std::current_exception();
+}
+
+
 }  // namespace
 
 int main(int argc, char** argv) try {
+
   int i;
 
   while ((i = getopt_long(argc, argv, "", long_options, 0)) != -1) {
@@ -214,6 +272,7 @@ int main(int argc, char** argv) try {
         "\n"
         "      --help     display this help and exit\n"
         "      --version  display version information and exit\n"
+        "      --complete delete things that fail an integrity check\n"
         "\n"
         "Report bugs to <morten.hustveit@gmail.com>\n",
         argv[0]);
@@ -240,9 +299,14 @@ int main(int argc, char** argv) try {
 
     std::string path = argv[optind++];
 
-    threads.emplace_back(std::async(
-        std::launch::async,
-        [path = std::move(path)] { return CheckRepository(std::move(path)); }));
+    if (complete)
+      threads.emplace_back(std::async(
+          std::launch::async,
+          [path = std::move(path)] { return CheckRepositoryComplete(std::move(path)); }));
+    else
+      threads.emplace_back(std::async(
+          std::launch::async,
+          [path = std::move(path)] { return CheckRepository(std::move(path)); }));
   }
 
   while (!threads.empty()) {

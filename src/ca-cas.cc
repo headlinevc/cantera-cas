@@ -143,6 +143,7 @@ class MoveQueue {
 
     const auto& key = std::get<CASKey>(move);
 
+    KJ_CONTEXT(key.ToString());
     auto get_request =
         source->GetStream(key.ToString(), target->PutStream(key, false));
 
