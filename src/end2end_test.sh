@@ -86,11 +86,11 @@ test_404 "missing"
 put "data000001"
 put "data000001$PADDING"
 put "data000002$PADDING"
-expect_n_objects 2
+expect_n_objects 4
 
 put "data000002"
 put "data000003$PADDING"
-expect_n_objects 3
+expect_n_objects 6
 
 test_200 "data000001$PADDING"
 test_200 "data000002$PADDING"

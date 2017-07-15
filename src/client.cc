@@ -62,8 +62,6 @@ class CASClient::Impl {
   kj::Promise<void> on_disconnect;
 
   uint64_t reconnection_delay_usec = 0;
-
-  size_t max_object_in_key_size = 128;
 };
 
 const uint64_t kDefaultReconnectionDelayUSec = 500;
@@ -158,13 +156,6 @@ kj::Promise<void> CASClient::PutAsync(const CASKey& key, const void* data,
 
 kj::Promise<std::string> CASClient::PutAsync(const void* data, size_t size,
                                              bool sync) {
-  if (size < pimpl_->max_object_in_key_size) {
-    std::string key("P");
-    ToBase64(string_view{reinterpret_cast<const char*>(data), size}, key,
-             kBase64WebSafeChars, false);
-    return std::move(key);
-  }
-
   CASKey sha1;
   SHA1::Digest(data, size, sha1.begin());
 
@@ -348,10 +339,6 @@ kj::Promise<void> CASClient::OnConnect() {
   if (!pimpl_->connection_pending) return pimpl_->Connect();
 
   return pimpl_->on_connect.addBranch();
-}
-
-void CASClient::SetMaxObjectInKeySize(size_t limit) {
-  pimpl_->max_object_in_key_size = limit;
 }
 
 kj::Promise<void> CASClient::Impl::Connect() {

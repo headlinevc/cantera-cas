@@ -131,11 +131,6 @@ class CASClient {
 
   kj::Promise<void> OnConnect();
 
-  // Set the size of the largest object that is allowed to be stored directly
-  // in the key, plus one.  If set to zero, no object is ever stored in the key
-  // itself.
-  void SetMaxObjectInKeySize(size_t limit);
-
  private:
   class Impl;
   std::unique_ptr<Impl> pimpl_;
