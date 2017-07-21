@@ -91,7 +91,8 @@ size_t num_sha1_verify = 10000;
 
 int print_version;
 int print_help;
-int complete;
+int fix;
+int all;
 
 // Some of our code uses a lot of memory temporarily.  This mutex prevents
 // multiple instances of that code from running in parallel.
@@ -99,10 +100,11 @@ std::mutex big_memory;
 
 struct option long_options[] = {{"version", no_argument, &print_version, 1},
                                 {"help", no_argument, &print_help, 1},
-                                {"complete", no_argument, &complete, 1},
+                                {"fix", no_argument, &fix, 1},
+                                {"all", no_argument, &all, 1},
                                 {0, 0, 0, 0}};
 
-std::exception_ptr CheckRepository(std::string path) {
+std::exception_ptr CheckRepository(std::string path, bool all) {
   try {
     KJ_CONTEXT(path);
 
@@ -152,7 +154,7 @@ std::exception_ptr CheckRepository(std::string path) {
                        [](const auto& v) { return (v.offset & kDeletedMask); }),
         index.end());
 
-    if (index.size() > num_sha1_verify) {
+    if (not all and index.size() > num_sha1_verify) {
       std::mt19937_64 strong_rng{std::random_device{}()};
 
       index.erase(RandomSample(index.begin(), index.end(), index.begin(),
@@ -173,23 +175,41 @@ std::exception_ptr CheckRepository(std::string path) {
     for (auto i = index.begin(); i != index.end(); ++i) {
       if (i->offset & kDeletedMask) continue;
 
+      for (unsigned tries=0; tries < 4; tries++)
+      {
+        const auto offset = i->offset & kOffsetMask;
+        const auto data_file_idx = (i->offset & kBucketMask) >> 56;
 
-      const auto offset = i->offset & kOffsetMask;
-      const auto data_file_idx = (i->offset & kBucketMask) >> 56;
+        KJ_REQUIRE(offset + i->size <= data_sizes[data_file_idx]);
 
-      KJ_REQUIRE(offset + i->size <= data_sizes[data_file_idx]);
+        buffer.resize(i->size);
 
-      buffer.resize(i->size);
+        cas_internal::ReadWithOffset(data_fds[data_file_idx].get(), buffer.data(),
+                                    i->size, offset);
 
-      cas_internal::ReadWithOffset(data_fds[data_file_idx].get(), buffer.data(),
-                                   i->size, offset);
+        std::array<uint8_t, 20> digest;
+        cas_internal::SHA1::Digest(buffer, digest.begin());
 
-      std::array<uint8_t, 20> digest;
-      cas_internal::SHA1::Digest(buffer, digest.begin());
+        if (not std::equal(
+          digest.begin(), digest.end(), i->key.begin(),
+          i->key.end()
+        ))
+        {
+          std::cerr << "Hash check failed " << tries+1 << " times: "
+            << CASKey(i->key.data()).ToString() << std::endl;
+          if (tries == 3)
+          {
+            KJ_CONTEXT(CASKey(digest.data()).ToString() + " " + CASKey(i->key.data()).ToString());
+            KJ_REQUIRE(std::equal(digest.begin(), digest.end(), i->key.begin(),
+                                  i->key.end()));
+          }
+        }
+        else
+        {
+          break;
+        }
 
-      KJ_CONTEXT(CASKey(digest.data()).ToString() + " " + CASKey(i->key.data()).ToString());
-      KJ_REQUIRE(std::equal(digest.begin(), digest.end(), i->key.begin(),
-                            i->key.end()));
+      }
     }
   } catch (...) {
     return std::current_exception();
@@ -199,7 +219,7 @@ std::exception_ptr CheckRepository(std::string path) {
 }
 
 
-std::exception_ptr CheckRepositoryComplete(std::string host)
+std::exception_ptr CheckRepositoryFix(std::string host)
 try
 {
   kj::AsyncIoContext async_io{kj::setupAsyncIo()};
@@ -272,7 +292,8 @@ int main(int argc, char** argv) try {
         "\n"
         "      --help     display this help and exit\n"
         "      --version  display version information and exit\n"
-        "      --complete delete things that fail an integrity check\n"
+        "      --fix      delete things that fail an integrity check\n"
+        "      --all      check every object\n"
         "\n"
         "Report bugs to <morten.hustveit@gmail.com>\n",
         argv[0]);
@@ -299,14 +320,14 @@ int main(int argc, char** argv) try {
 
     std::string path = argv[optind++];
 
-    if (complete)
+    if (fix)
       threads.emplace_back(std::async(
           std::launch::async,
-          [path = std::move(path)] { return CheckRepositoryComplete(std::move(path)); }));
+          [path = std::move(path)] { return CheckRepositoryFix(std::move(path)); }));
     else
       threads.emplace_back(std::async(
           std::launch::async,
-          [path = std::move(path)] { return CheckRepository(std::move(path)); }));
+          [path = std::move(path)] { return CheckRepository(std::move(path), all); }));
   }
 
   while (!threads.empty()) {

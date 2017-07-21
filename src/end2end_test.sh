@@ -3,7 +3,7 @@
 set -e
 set -o pipefail
 
-LAUNCHER="valgrind -q"
+#LAUNCHER="valgrind -q"
 
 repo=`mktemp -d`
 
