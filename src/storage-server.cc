@@ -255,7 +255,7 @@ StorageServer::StorageServer(const char* path, unsigned int flags,
     }
 
     data_fds_.emplace_back(cas_internal::OpenFile(
-        dir_fd_.get(), filename.c_str(), O_RDWR | O_CREAT | O_APPEND, 0666));
+        dir_fd_.get(), filename.c_str(), O_RDWR | O_CREAT, 0666));
 
     off_t size;
     KJ_SYSCALL(size = lseek(data_fds_.back().get(), 0, SEEK_END));
