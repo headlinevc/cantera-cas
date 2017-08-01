@@ -255,7 +255,7 @@ StorageServer::StorageServer(const char* path, unsigned int flags,
     }
 
     data_fds_.emplace_back(cas_internal::OpenFile(
-        dir_fd_.get(), filename.c_str(), O_RDWR | O_CREAT | O_APPEND, 0666));
+        dir_fd_.get(), filename.c_str(), O_RDWR | O_CREAT, 0666));
 
     off_t size;
     KJ_SYSCALL(size = lseek(data_fds_.back().get(), 0, SEEK_END));
@@ -619,8 +619,20 @@ kj::Promise<void> StorageServer::Put(const CASKey& key, std::string data,
   ie.size = data.size();
   ie.key = key;
 
-  kj::FdOutputStream data_output(data_fd);
-  data_output.write(data.data(), data.size());
+
+  {
+    off_t writing_at = data_offset;
+    size_t writing_from = 0;
+
+    while (writing_from < data.size())
+    {
+      ssize_t count;
+      KJ_SYSCALL(count = pwrite(
+        data_fd, data.data()+writing_from, data.size()-writing_from, writing_at));
+      writing_from += count;
+      writing_at += count;
+    }
+  }
 
   data_file_sizes_.back().first += data.size();
   std::push_heap(data_file_sizes_.begin(), data_file_sizes_.end(),
