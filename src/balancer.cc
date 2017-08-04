@@ -336,26 +336,19 @@ kj::Promise<void> BalancerServer::list(ListContext context) {
 kj::Promise<void> BalancerServer::compact(CompactContext context) {
   // Maps failure domain to promise for that domain.  We create one chain of
   // promises per failure domain, and run each chain in parallel.
-  std::unordered_map<uint8_t, kj::Promise<void>> promises;
+  std::vector<kj::Promise<void>> promises;
 
   for (auto& backend : sharding_info_.Backends()) {
     if (!backend.client->Connected()) continue;
 
-    auto i = promises.find(backend.failure_domain);
-
     // TODO(mortehu): Keep going on error.
 
-    if (i == promises.end()) {
-      promises.emplace(backend.failure_domain, backend.client->CompactAsync());
-    } else {
-      i->second = i->second.then(
-          [client = backend.client] { return client->CompactAsync(); });
-    }
+    promises.emplace_back(backend.client->CompactAsync());
   }
 
   auto promise_array = kj::heapArrayBuilder<kj::Promise<void>>(promises.size());
 
-  for (auto& promise : promises) promise_array.add(std::move(promise.second));
+  for (auto& promise : promises) promise_array.add(std::move(promise));
 
   return kj::joinPromises(promise_array.finish());
 }
