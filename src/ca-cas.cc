@@ -147,10 +147,17 @@ class MoveQueue {
     auto get_request =
         source->GetStream(key.ToString(), target->PutStream(key, false));
 
-    return get_request.then([this] {
-      if (progress_) progress_->Put(1);
-      return this->Process();
-    });
+    return get_request.then(
+      [this] {
+        if (progress_) progress_->Put(1);
+        return this->Process();
+      },
+      [this] (kj::Exception&& e) {
+        KJ_LOG(WARNING, e);
+        if (progress_) progress_->Put(1);
+        return this->Process();
+      }
+    );
   }
 
   typedef std::unordered_map<CASClient*,
@@ -528,7 +535,7 @@ void Balance(char** argv, int argc) {
   object_presence.clear();
   object_presence.shrink_to_fit();
 
-  moves.RunQueue(backends.size() * 2);
+  moves.RunQueue(backends.size() * 4);
   removals.RunQueue(backends.size() * 10);
 }
 
