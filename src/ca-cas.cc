@@ -293,6 +293,46 @@ class ExportQueue {
   cantera::ColumnFileWriter output_;
 };
 
+class ImportQueue
+{
+public:
+  ImportQueue(CASClient* client, std::unique_ptr<cantera::ColumnFileReader> reader)
+      : client_(client),
+        reader_(std::move(reader))
+  {
+    reader_->SetColumnFilter({1});
+  }
+
+  void RunQueue(size_t max_concurrency) {
+    auto promises = kj::Vector<kj::Promise<void>>(max_concurrency);
+
+    for (size_t i = 0; i < max_concurrency; ++i) promises.add(Process());
+
+    kj::joinPromises(promises.releaseAsArray()).wait(aio_context->waitScope);
+  }
+
+ private:
+  kj::Promise<void> Process() {
+    if (reader_->End()) return kj::READY_NOW;
+
+    const auto row = reader_->GetRow();
+    KJ_REQUIRE(row.size() == 1, row.size());
+    KJ_REQUIRE(row[0].first == 0, row[0].first);
+    KJ_REQUIRE(static_cast<bool>(row[0].second));
+
+    auto put_request = client_->PutAsync(row[0].second.value(), false);
+
+    return put_request.then([this](auto data) {
+      return this->Process();
+    });
+  }
+
+  CASClient* client_;
+
+  std::unique_ptr<cantera::ColumnFileReader> reader_;
+};
+
+
 bool Get(CASClient* client, char** argv, int argc) {
   if (argc < 1) {
     errx(EX_USAGE, "The 'get' command takes at least 1 argument, %d given",
@@ -535,8 +575,8 @@ void Balance(char** argv, int argc) {
   object_presence.clear();
   object_presence.shrink_to_fit();
 
-  moves.RunQueue(backends.size() * 4);
   removals.RunQueue(backends.size() * 10);
+  moves.RunQueue(backends.size() * 4);
 }
 
 bool Export(CASClient* client, char** argv, int argc) {
@@ -590,6 +630,50 @@ bool Export(CASClient* client, char** argv, int argc) {
 
   ExportQueue exports(client, std::move(queue));
   exports.RunQueue(100);
+
+  return true;
+}
+
+
+bool Import(CASClient* client, char** argv, int argc) {
+  std::unordered_set<CASKey> exclude_objects;
+
+  std::unique_ptr<cantera::ColumnFileReader> reader;
+  if (argc == 1) {
+    kj::AutoCloseFd input(nullptr);
+    if (!strcmp(argv[0], "-")) {
+      reader = std::make_unique<ColumnFileReader>(kj::AutoCloseFd(STDIN_FILENO));
+    } else {
+      reader = std::make_unique<ColumnFileReader>(OpenFile(argv[0], O_RDONLY));
+    }
+  } else {
+    if (argc != 0) {
+      err(EX_USAGE, "The 'import' command takes 1 argument, %d given",
+          argc);
+    }
+  }
+
+  for (const auto& exclude_path : exclude_paths) {
+    err(EX_USAGE, "not implemented");
+    cantera::ColumnFileReader reader(OpenFile(exclude_path.c_str(), O_RDONLY));
+    reader.SetColumnFilter({0});
+
+    while (!reader.End()) {
+      const auto row = reader.GetRow();
+
+      KJ_REQUIRE(row.size() == 1, row.size());
+      KJ_REQUIRE(row[0].first == 0, row[0].first);
+      KJ_REQUIRE(static_cast<bool>(row[0].second));
+
+      const auto& key = row[0].second.value();
+      KJ_REQUIRE(key.size() == 20, key.size());
+
+      exclude_objects.emplace(CASKey(reinterpret_cast<const uint8_t*>(key.data())));
+    }
+  }
+
+  ImportQueue imports(client, std::move(reader));
+  imports.RunQueue(100);
 
   return true;
 }
@@ -679,7 +763,8 @@ int main(int argc, char** argv) try {
         "  compact                    free disk space used by deleted objects\n"
         "  export [PATH]...           export objects listed on standard input, "
         "or in\n"
-        "                                the given files (subject to filters)\n"
+        "  import [PATH]...           imports data in column 0 of input\n"
+        "                             (subject to filters)\n"
         "  get KEY...                 retrieves the given objects\n"
         "  list                       lists all objects (subject to filters)\n"
         "  ping                       connect, then disconnect\n"
@@ -722,6 +807,8 @@ int main(int argc, char** argv) try {
     command = Compact;
   } else if (command_name == "export") {
     command = Export;
+  } else if (command_name == "import") {
+    command = Import;
   } else if (command_name == "get") {
     command = Get;
   } else if (command_name == "begin-gc") {

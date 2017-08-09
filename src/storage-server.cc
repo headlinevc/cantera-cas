@@ -553,9 +553,13 @@ kj::Promise<void> StorageServer::compact(CompactContext context) {
     moves.emplace_back(index_entry);
   }
 
-  // Reverse `moves` array so that we can use `pop_back` to remove each element
-  // after processing.
-  std::reverse(moves.begin(), moves.end());
+  // sort in decreasing order to make the disk drive happy
+  // make it backwards because we use `pop_back`.
+  std::sort(
+    moves.begin(), moves.end(),
+    [] (const auto &a, const auto &b) { return a.offset > b.offset; }
+  );
+
   auto drain_promise = DrainDataFile(std::move(moves));
 
   if (sync) {
