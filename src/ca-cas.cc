@@ -317,7 +317,7 @@ public:
 
     const auto row = reader_->GetRow();
     KJ_REQUIRE(row.size() == 1, row.size());
-    KJ_REQUIRE(row[0].first == 0, row[0].first);
+    KJ_REQUIRE(row[0].first == 1, row[0].first);
     KJ_REQUIRE(static_cast<bool>(row[0].second));
 
     auto put_request = client_->PutAsync(row[0].second.value(), false);
@@ -662,7 +662,7 @@ bool Import(CASClient* client, char** argv, int argc) {
       const auto row = reader.GetRow();
 
       KJ_REQUIRE(row.size() == 1, row.size());
-      KJ_REQUIRE(row[0].first == 1, row[0].first);
+      KJ_REQUIRE(row[0].first == 0, row[0].first);
       KJ_REQUIRE(static_cast<bool>(row[0].second));
 
       const auto& key = row[0].second.value();
