@@ -575,8 +575,8 @@ void Balance(char** argv, int argc) {
   object_presence.clear();
   object_presence.shrink_to_fit();
 
+  moves.RunQueue(backends.size() * 6);
   removals.RunQueue(backends.size() * 10);
-  moves.RunQueue(backends.size() * 4);
 }
 
 bool Export(CASClient* client, char** argv, int argc) {
@@ -662,7 +662,7 @@ bool Import(CASClient* client, char** argv, int argc) {
       const auto row = reader.GetRow();
 
       KJ_REQUIRE(row.size() == 1, row.size());
-      KJ_REQUIRE(row[0].first == 0, row[0].first);
+      KJ_REQUIRE(row[0].first == 1, row[0].first);
       KJ_REQUIRE(static_cast<bool>(row[0].second));
 
       const auto& key = row[0].second.value();
@@ -763,7 +763,7 @@ int main(int argc, char** argv) try {
         "  compact                    free disk space used by deleted objects\n"
         "  export [PATH]...           export objects listed on standard input, "
         "or in\n"
-        "  import [PATH]...           imports data in column 0 of input\n"
+        "  import [PATH]...           imports data in column 1 of input\n"
         "                             (subject to filters)\n"
         "  get KEY...                 retrieves the given objects\n"
         "  list                       lists all objects (subject to filters)\n"
