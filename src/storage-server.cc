@@ -545,11 +545,6 @@ kj::Promise<void> StorageServer::compact(CompactContext context) {
   for (const auto& index_entry : index_) {
     if (data_file_idx != ((index_entry.offset & kBucketMask) >> 56)) continue;
 
-    if ((index_entry.offset & kOffsetMask) == keep_prefix) {
-      keep_prefix += index_entry.size;
-      continue;
-    }
-
     moves.emplace_back(index_entry);
   }
 
@@ -704,6 +699,14 @@ kj::Promise<void> StorageServer::DrainDataFile(std::vector<IndexEntry> moves) {
 
   const auto move = moves.back();
   moves.pop_back();
+
+  if ( (move.offset & kOffsetMask) > 1'000'000'000'000)
+  {
+    // impossible object, skip it
+    return DrainDataFile(std::move(moves));
+  }
+
+
 
   const auto data_file_idx = (move.offset & kBucketMask) >> 56;
 

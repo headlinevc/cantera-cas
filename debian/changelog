@@ -1,3 +1,37 @@
+ca-cas (1.1.4-6-ev) unstable; urgency=medium
+
+  * fix import command
+
+ -- Charles Samuels <kalle@eventures.vc>  Thu, 10 Aug 2017 09:20:16 +0300
+
+ca-cas (1.1.4-5-ev) unstable; urgency=medium
+
+  * compact faster
+  * add an import command
+
+ -- Charles Samuels <kalle@eventures.vc>  Wed, 09 Aug 2017 13:48:36 +0300
+
+ca-cas (1.1.4-4-ev) unstable; urgency=medium
+
+  * don't fail while balancing
+  * compact everyone in parallel
+
+ -- Charles Samuels <kalle@eventures.vc>  Fri, 04 Aug 2017 08:22:50 +0300
+
+ca-cas (1.1.4-3-ev) unstable; urgency=medium
+
+  * add --fix and --all to fsck
+  * use pwrite for writing to the data file
+
+ -- Charles Samuels <kalle@eventures.vc>  Tue, 01 Aug 2017 18:50:15 +0300
+
+ca-cas (1.1.4-2-ev) unstable; urgency=medium
+
+  * remove "object in key" feature
+  * Use optimizations again
+
+ -- Charles Samuels <kalle@eventures.vc>  Thu, 13 Jul 2017 14:15:55 +0300
+
 ca-cas (1.1.4-1-ev) unstable; urgency=medium
 
   * More diagnostics
