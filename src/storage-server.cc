@@ -703,10 +703,10 @@ kj::Promise<void> StorageServer::DrainDataFile(std::vector<IndexEntry> moves) {
   if ( (move.offset & kOffsetMask) > 1'000'000'000'000)
   {
     // impossible object, skip it
+    auto index_entry = index_.find(move);
+    index_.erase(index_entry);
     return DrainDataFile(std::move(moves));
   }
-
-
 
   const auto data_file_idx = (move.offset & kBucketMask) >> 56;
 
