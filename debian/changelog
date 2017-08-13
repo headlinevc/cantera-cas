@@ -1,3 +1,15 @@
+ca-cas (1.1.4-8-ev) unstable; urgency=medium
+
+  * correct compaction bug
+
+ -- Charles Samuels <kalle@eventures.vc>  Fri, 11 Aug 2017 17:21:24 +0300
+
+ca-cas (1.1.4-7-ev) unstable; urgency=medium
+
+  * ignore certain errors in the index file
+
+ -- Charles Samuels <kalle@eventures.vc>  Fri, 11 Aug 2017 10:51:32 +0300
+
 ca-cas (1.1.4-6-ev) unstable; urgency=medium
 
   * fix import command

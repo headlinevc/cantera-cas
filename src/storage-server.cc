@@ -700,11 +700,20 @@ kj::Promise<void> StorageServer::DrainDataFile(std::vector<IndexEntry> moves) {
   const auto move = moves.back();
   moves.pop_back();
 
-  if ( (move.offset & kOffsetMask) > 1'000'000'000'000)
+  if ( (move.offset & kOffsetMask) > 200'000'000'000)
   {
     // impossible object, skip it
-    auto index_entry = index_.find(move);
-    index_.erase(index_entry);
+    {
+      auto index_entry = index_.find(move);
+      index_.erase(index_entry);
+      // and delete it
+      IndexEntry ie;
+      ie.offset = move.offset | kDeletedMask;
+      ie.size = move.size;
+      ie.key = move.key;
+      kj::FdOutputStream index_output(index_fd_.get());
+      index_output.write(&ie, sizeof(ie));
+    }
     return DrainDataFile(std::move(moves));
   }
 
