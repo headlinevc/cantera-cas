@@ -300,7 +300,6 @@ public:
       : client_(client),
         reader_(std::move(reader))
   {
-    reader_->SetColumnFilter({1});
   }
 
   void RunQueue(size_t max_concurrency) {
@@ -316,11 +315,11 @@ public:
     if (reader_->End()) return kj::READY_NOW;
 
     const auto row = reader_->GetRow();
-    KJ_REQUIRE(row.size() == 1, row.size());
-    KJ_REQUIRE(row[0].first == 1, row[0].first);
-    KJ_REQUIRE(static_cast<bool>(row[0].second));
+    KJ_REQUIRE(row.size() >= 2, row.size());
+    KJ_REQUIRE(row[1].first == 1, row[1].first);
+    KJ_REQUIRE(static_cast<bool>(row[1].second));
 
-    auto put_request = client_->PutAsync(row[0].second.value(), false);
+    auto put_request = client_->PutAsync(row[1].second.value(), false);
 
     return put_request.then([this](auto data) {
       return this->Process();
