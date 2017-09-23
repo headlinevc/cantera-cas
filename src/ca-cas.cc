@@ -702,6 +702,7 @@ int main(int argc, char** argv) try {
         KJ_REQUIRE(0 <= glob(optarg, GLOB_ERR, nullptr, &globbuf));
         for (size_t i = 0; i < globbuf.gl_pathc; ++i)
           exclude_paths.emplace_back(globbuf.gl_pathv[i]);
+        KJ_REQUIRE(not exclude_paths.empty());
         globfree(&globbuf);
       } break;
 
