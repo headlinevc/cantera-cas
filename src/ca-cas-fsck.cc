@@ -172,43 +172,39 @@ std::exception_ptr CheckRepository(std::string path, bool all) {
 
     std::vector<char> buffer;
 
-    for (auto i = index.begin(); i != index.end(); ++i) {
-      if (i->offset & kDeletedMask) continue;
+    for (auto i = index.begin(); i != index.end(); ++i)
+    {
+      const auto offset = i->offset & kOffsetMask;
+      const auto data_file_idx = (i->offset & kBucketMask) >> 56;
 
-      for (unsigned tries=0; tries < 4; tries++)
+      KJ_REQUIRE(offset + i->size <= data_sizes[data_file_idx]);
+
+      buffer.resize(i->size);
+
+      cas_internal::ReadWithOffset(data_fds[data_file_idx].get(), buffer.data(),
+                                  i->size, offset);
+
+      std::array<uint8_t, 20> digest;
+      cas_internal::SHA1::Digest(buffer, digest.begin());
+
+      if (not std::equal(
+        digest.begin(), digest.end(), i->key.begin(),
+        i->key.end()
+      ))
       {
-        const auto offset = i->offset & kOffsetMask;
-        const auto data_file_idx = (i->offset & kBucketMask) >> 56;
-
-        KJ_REQUIRE(offset + i->size <= data_sizes[data_file_idx]);
-
-        buffer.resize(i->size);
-
-        cas_internal::ReadWithOffset(data_fds[data_file_idx].get(), buffer.data(),
-                                    i->size, offset);
-
-        std::array<uint8_t, 20> digest;
-        cas_internal::SHA1::Digest(buffer, digest.begin());
-
-        if (not std::equal(
-          digest.begin(), digest.end(), i->key.begin(),
-          i->key.end()
-        ))
-        {
-          std::cerr << "Hash check failed " << tries+1 << " times: "
-            << CASKey(i->key.data()).ToString() << std::endl;
-          if (tries == 3)
-          {
-            KJ_CONTEXT(CASKey(digest.data()).ToString() + " " + CASKey(i->key.data()).ToString());
-            KJ_REQUIRE(std::equal(digest.begin(), digest.end(), i->key.begin(),
-                                  i->key.end()));
-          }
-        }
-        else
-        {
-          break;
-        }
-
+        std::cerr << "Hash check failed: "
+          << CASKey(i->key.data()).ToString()
+          << " datafileidx=" << data_file_idx
+          << " offset=" << offset
+          << " size=" << i->size
+          << std::endl;
+        KJ_CONTEXT(CASKey(digest.data()).ToString() + " " + CASKey(i->key.data()).ToString());
+        KJ_REQUIRE(
+          std::equal(
+            digest.begin(), digest.end(), i->key.begin(),
+            i->key.end()
+          )
+        );
       }
     }
   } catch (...) {

@@ -141,7 +141,7 @@ kj::Promise<void> PutStream::done(DoneContext context) {
                         sha1_digest_.begin()),
              "calculated SHA-1 digest does not match key suggested by client");
 
-  return storage_server_.Put(sha1_digest_, std::move(buffer_), sync_);
+  return storage_server_.Put(sha1_digest_, buffer_, sync_);
 }
 
 kj::Promise<void> PutStream::expectSize(ExpectSizeContext context) {
@@ -598,7 +598,7 @@ kj::Promise<void> StorageServer::getConfig(
   return kj::READY_NOW;
 }
 
-kj::Promise<void> StorageServer::Put(const CASKey& key, std::string data,
+kj::Promise<void> StorageServer::Put(const CASKey& key, const std::string& data,
                                      bool sync) {
   if (index_.count(key)) return kj::READY_NOW;
 
@@ -618,20 +618,8 @@ kj::Promise<void> StorageServer::Put(const CASKey& key, std::string data,
   ie.size = data.size();
   ie.key = key;
 
-
-  {
-    off_t writing_at = data_offset;
-    size_t writing_from = 0;
-
-    while (writing_from < data.size())
-    {
-      ssize_t count;
-      KJ_SYSCALL(count = pwrite(
-        data_fd, data.data()+writing_from, data.size()-writing_from, writing_at));
-      writing_from += count;
-      writing_at += count;
-    }
-  }
+  kj::FdOutputStream data_output(data_fd);
+  data_output.write(data.data(), data.size());
 
   data_file_sizes_.back().first += data.size();
   std::push_heap(data_file_sizes_.begin(), data_file_sizes_.end(),

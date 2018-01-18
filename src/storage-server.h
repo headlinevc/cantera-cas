@@ -69,7 +69,7 @@ class StorageServer : public CAS::Server {
 
   kj::Promise<void> getConfig(GetConfigContext context) override;
 
-  kj::Promise<void> Put(const CASKey& key, std::string data, bool sync);
+  kj::Promise<void> Put(const CASKey& key, const std::string& data, bool sync);
 
   const std::unordered_set<StorageServer::IndexEntry,
                            StorageServer::IndexEntryHash>&
