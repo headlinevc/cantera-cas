@@ -16,7 +16,7 @@
 
 #include "src/progress.h"
 #include "src/util.h"
-
+#include <functional>
 #include <chrono>
 #include <cmath>
 #include <cstdio>

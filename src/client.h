@@ -6,6 +6,7 @@
 #include <experimental/string_view>
 #include <memory>
 #include <vector>
+#include <functional>
 
 #include <capnp/common.h>
 #include <kj/arena.h>
