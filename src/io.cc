@@ -100,7 +100,7 @@ kj::Array<const char> ReadFile(int fd) {
   off_t size = lseek(fd, 0, SEEK_END);
   if (size == -1) {
     if (errno != ESPIPE) {
-      KJ_FAIL_SYSCALL("lseek", errno)
+      KJ_FAIL_SYSCALL("lseek", errno);
     }
 
     // Unseekable file descriptor; let's just read into a vector.
