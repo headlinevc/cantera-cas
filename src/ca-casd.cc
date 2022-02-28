@@ -29,6 +29,7 @@
 #include <sysexits.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <stdexcept>
 
 #include <capnp/rpc-twoparty.h>
 #include <kj/async-io.h>
